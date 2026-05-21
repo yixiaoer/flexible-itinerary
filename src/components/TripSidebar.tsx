@@ -7,6 +7,7 @@ import { addDaysISO } from '../lib/time'
 import { geocodeOptions, type GeocodeHit } from '../lib/weather'
 import type { Block, Trip, TripMeta } from '../types'
 import { ChipList } from './ChipList'
+import { TripMiniMap } from './TripMiniMap'
 import { BrandMark, Button, ErrorState, FormSection, LoadingState, NumberStepper } from './ui'
 
 interface Props {
@@ -604,6 +605,8 @@ export function TripSidebar({ onGenerated }: Props) {
       </FormSection>
       </div>
       </div>
+
+      {trip && <TripMiniMap className="shadow-card" />}
 
       <div className="relative rounded-2xl border border-white/70 bg-white/50 p-4 shadow-sm">
       <FormSection label={t(locale, 'placesWanted')}>

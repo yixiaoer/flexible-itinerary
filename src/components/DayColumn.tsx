@@ -18,6 +18,7 @@ interface Props {
   onSelect: (id: string | null) => void
   onEdit: (b: Block) => void
   onReplanDay: () => void
+  onClearDay: () => void
   onRemoveDay: () => void
   dropIndex?: number | null
   activeBlockId?: string | null
@@ -60,6 +61,7 @@ export function DayColumn({
   onSelect,
   onEdit,
   onReplanDay,
+  onClearDay,
   onRemoveDay,
   dropIndex,
   activeBlockId,
@@ -109,6 +111,15 @@ export function DayColumn({
               aria-label={t(locale, 'replanThisDay')}
             >
               <SparkleGlyph />
+            </button>
+            <button
+              className="icon-btn"
+              onClick={onClearDay}
+              title={t(locale, 'clearDay')}
+              aria-label={t(locale, 'clearDay')}
+              disabled={sorted.length === 0}
+            >
+              <ClearGlyph />
             </button>
             <button
               className="icon-btn"
@@ -180,6 +191,17 @@ function SparkleGlyph() {
   return (
     <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M12 3v4M12 17v4M3 12h4M17 12h4M5.6 5.6l2.8 2.8M15.6 15.6l2.8 2.8M5.6 18.4l2.8-2.8M15.6 8.4l2.8-2.8" />
+    </svg>
+  )
+}
+
+function ClearGlyph() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M4 20h16" />
+      <path d="M7 16l8-8" />
+      <path d="M11 4l5 5" />
+      <path d="M5 18l4 2 9-9-6-6-9 9 2 4z" />
     </svg>
   )
 }

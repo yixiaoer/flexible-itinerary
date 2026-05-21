@@ -10,6 +10,8 @@ interface TripState {
   library: Trip[]
   setTrip: (trip: Trip | null) => void
   createBlankTrip: () => void
+  clearArrangements: () => void
+  reorderLibraryTrip: (activeId: string, overId: string) => void
   saveTripToLibrary: (trip?: Trip | null) => void
   syncTripToLibrary: (trip?: Trip | null) => void
   loadLibraryTrip: (tripId: string) => void
@@ -21,6 +23,7 @@ interface TripState {
 
   addDay: () => void
   removeDay: (dayId: string) => void
+  clearDayArrangements: (dayId: string) => void
   patchDay: (dayId: string, patch: Partial<Day>) => void
 
   /** dayId can be UNSCHEDULED_ID to add to the candidates pool. */
@@ -104,12 +107,15 @@ function normalizeTrip(trip: Trip, preserveId = true): Trip {
 function upsertLibrary(library: Trip[], trip?: Trip | null): Trip[] {
   if (!trip) return library
   const saved = cloneTrip(trip)
-  const existing = library.find((item) => item.id === saved.id)
+  const existingIndex = library.findIndex((item) => item.id === saved.id)
+  const existing = existingIndex >= 0 ? library[existingIndex] : undefined
   if (existing?.updatedAt === saved.updatedAt) return library
-  return [
-    saved,
-    ...library.filter((item) => item.id !== saved.id),
-  ].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
+  if (existingIndex >= 0) {
+    const next = [...library]
+    next[existingIndex] = saved
+    return next
+  }
+  return [saved, ...library]
 }
 
 function snapshotTrip(trip: Trip): Trip {
@@ -372,6 +378,38 @@ export const useTripStore = create<TripState>()(
           commitTrip(trip)
         },
 
+        clearArrangements: () => {
+          const t = get().trip
+          if (!t) return
+          const nextMeta: TripMeta = {
+            title: '',
+            countries: t.meta.countries,
+            mustVisit: [],
+            vibes: [],
+            numDays: 4,
+            travelers: t.meta.travelers ?? 1,
+          }
+          commitUpdatedTrip({
+            ...t,
+            meta: nextMeta,
+            days: buildBlankDays(nextMeta.numDays),
+            unscheduled: [],
+          })
+        },
+
+        reorderLibraryTrip: (activeId, overId) => {
+          if (activeId === overId) return
+          set((state) => {
+            const from = state.library.findIndex((item) => item.id === activeId)
+            const to = state.library.findIndex((item) => item.id === overId)
+            if (from < 0 || to < 0) return state
+            const next = [...state.library]
+            const [moved] = next.splice(from, 1)
+            next.splice(to, 0, moved)
+            return { library: next }
+          })
+        },
+
       saveTripToLibrary: (trip) => {
         const target = trip === undefined ? get().trip : trip
         if (!target) return
@@ -453,7 +491,7 @@ export const useTripStore = create<TripState>()(
               : state.trip
           return {
             trip: nextTrip,
-            library: nextLibrary.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)),
+            library: nextLibrary,
           }
         })
       },
@@ -499,6 +537,20 @@ export const useTripStore = create<TripState>()(
             days,
             unscheduled,
             meta: { ...t.meta, numDays: days.length },
+        })
+      },
+
+      clearDayArrangements: (dayId) => {
+        const t = get().trip
+        if (!t) return
+        const target = t.days.find((d) => d.id === dayId)
+        if (!target || target.blocks.length === 0) return
+        commitUpdatedTrip({
+          ...t,
+          days: t.days.map((day) =>
+            day.id === dayId ? { ...day, blocks: [] } : day,
+          ),
+          unscheduled: [...t.unscheduled, ...target.blocks],
         })
       },
 

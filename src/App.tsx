@@ -7,7 +7,7 @@ import { BoardView } from './components/BoardView'
 import { MapPanel } from './components/MapPanel'
 import { ReviewView } from './components/ReviewView'
 import { RightPanel } from './components/RightPanel'
-import { Drawer } from './components/ui'
+import { Button, Drawer, Modal } from './components/ui'
 import { AppShell } from './components/layout'
 import { useTripStore } from './store/trip'
 import { useSettings } from './store/settings'
@@ -17,26 +17,51 @@ export type Tab = 'board' | 'map' | 'review'
 
 export default function App() {
   const trip = useTripStore((s) => s.trip)
-  const reset = useTripStore((s) => s.reset)
+  const createBlankTrip = useTripStore((s) => s.createBlankTrip)
+  const clearArrangements = useTripStore((s) => s.clearArrangements)
   const locale = useSettings((s) => s.locale)
   const [tab, setTab] = useState<Tab>('board')
   const [showSettings, setShowSettings] = useState(false)
   const [showLibrary, setShowLibrary] = useState(false)
+  const [pendingAction, setPendingAction] = useState<'newTrip' | 'clearArrangements' | null>(null)
   const [selectedBlockId, setSelectedBlockId] = useState<string | null>(null)
 
-  const showRight = tab === 'board' && !!trip
+  const activeTripTitle =
+    trip?.meta.title || trip?.meta.countries.join(', ') || (locale === 'zh' ? '未命名行程' : 'Untitled trip')
+  const confirmTitle =
+    pendingAction === 'newTrip'
+      ? t(locale, 'confirmNewTripTitle')
+      : t(locale, 'confirmClearArrangementsTitle')
+  const confirmBody =
+    pendingAction === 'newTrip'
+      ? t(locale, 'confirmNewTripBody')
+      : t(locale, 'confirmClearArrangementsBody')
+  const confirmButton =
+    pendingAction === 'newTrip'
+      ? t(locale, 'newTripAction')
+      : t(locale, 'clearArrangements')
+
+  const confirmHeaderAction = () => {
+    if (pendingAction === 'newTrip') {
+      createBlankTrip()
+      setTab('board')
+    } else if (pendingAction === 'clearArrangements') {
+      clearArrangements()
+    }
+    setSelectedBlockId(null)
+    setPendingAction(null)
+  }
 
   const header = (
     <Header
       locale={locale}
       onOpenLibrary={() => setShowLibrary(true)}
       onOpenSettings={() => setShowSettings(true)}
-      onClearTrip={() => {
-        if (confirm(t(locale, 'confirmDeleteTrip'))) {
-          reset()
-          setSelectedBlockId(null)
-        }
+      onNewTrip={() => {
+        if (trip) setPendingAction('newTrip')
+        else createBlankTrip()
       }}
+      onClearArrangements={() => setPendingAction('clearArrangements')}
       hasTrip={!!trip}
       tab={tab}
       onTab={setTab}
@@ -68,7 +93,7 @@ export default function App() {
           setTab('board')
         }}
       />
-      {showRight && selectedBlockId && (
+      {tab === 'board' && trip && selectedBlockId && (
         <div className="2xl:hidden">
           <Drawer
             open
@@ -81,6 +106,32 @@ export default function App() {
           </Drawer>
         </div>
       )}
+      {pendingAction && (
+        <Modal
+          title={confirmTitle}
+          onClose={() => setPendingAction(null)}
+          maxWidthClassName="max-w-md"
+          bodyClassName="space-y-4"
+          footer={
+            <>
+              <Button variant="outline" onClick={() => setPendingAction(null)}>
+                {locale === 'zh' ? '取消' : 'Cancel'}
+              </Button>
+              <Button
+                variant={pendingAction === 'newTrip' ? 'primary' : 'danger'}
+                onClick={confirmHeaderAction}
+              >
+                {confirmButton}
+              </Button>
+            </>
+          }
+        >
+          <div className="rounded-2xl border border-red-100 bg-red-50/55 px-4 py-3">
+            <div className="text-sm font-semibold text-ink-900">{activeTripTitle}</div>
+            <p className="mt-1 text-sm leading-6 text-ink-600">{confirmBody}</p>
+          </div>
+        </Modal>
+      )}
     </>
   )
 
@@ -89,7 +140,6 @@ export default function App() {
       header={header}
       sidebar={<TripSidebar key={trip?.id ?? 'empty-trip'} onGenerated={() => setTab('board')} />}
       main={main}
-      aside={showRight ? <RightPanel selectedBlockId={selectedBlockId} /> : undefined}
       overlays={overlays}
     />
   )

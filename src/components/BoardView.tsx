@@ -28,7 +28,7 @@ import { UNSCHEDULED_ID, type Block } from '../types'
 import { fmtDuration, shortDateLabel } from '../lib/time'
 import type { Tab } from '../App'
 import { PageHeader } from './layout'
-import { BlankState, BrandMark, Button, ErrorState, LoadingState } from './ui'
+import { BlankState, BrandMark, Button, ErrorState, LoadingState, Modal } from './ui'
 
 interface Props {
   selectedBlockId: string | null
@@ -42,6 +42,7 @@ export function BoardView({ selectedBlockId, onSelectBlock, onSwitchTab }: Props
   const setEvidence = useTripStore((s) => s.setEvidence)
   const addDay = useTripStore((s) => s.addDay)
   const removeDay = useTripStore((s) => s.removeDay)
+  const clearDayArrangements = useTripStore((s) => s.clearDayArrangements)
 
   const locale = useSettings((s) => s.locale)
   const llm = useSettings((s) => s.llm)
@@ -52,6 +53,12 @@ export function BoardView({ selectedBlockId, onSelectBlock, onSwitchTab }: Props
   const [validateError, setValidateError] = useState<string | null>(null)
   const [activeBlockId, setActiveBlockId] = useState<string | null>(null)
   const [dropTarget, setDropTarget] = useState<{ containerId: string; index: number } | null>(null)
+  const [pendingDayAction, setPendingDayAction] = useState<{
+    type: 'remove' | 'clear'
+    dayId: string
+    index: number
+    blockCount: number
+  } | null>(null)
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
@@ -178,6 +185,14 @@ export function BoardView({ selectedBlockId, onSelectBlock, onSwitchTab }: Props
     : trip.meta.title || (locale === 'zh' ? `未命名行程 · ${dateRange}` : `Untitled trip · ${dateRange}`)
   const scheduledCount = trip.days.flatMap((d) => d.blocks).length
 
+  const confirmDayAction = () => {
+    if (!pendingDayAction) return
+    if (pendingDayAction.type === 'remove') removeDay(pendingDayAction.dayId)
+    else clearDayArrangements(pendingDayAction.dayId)
+    onSelectBlock(null)
+    setPendingDayAction(null)
+  }
+
   const runValidate = async () => {
     if (!llm.apiKey) {
       setValidateError(t(locale, 'fillKeyFirst'))
@@ -285,9 +300,22 @@ export function BoardView({ selectedBlockId, onSelectBlock, onSwitchTab }: Props
               onSelect={onSelectBlock}
               onEdit={(b: Block) => setEditing({ dayId: day.id, block: b })}
               onReplanDay={() => setDisruption({ open: true, dayId: day.id })}
-              onRemoveDay={() => {
-                if (confirm(t(locale, 'confirmRemoveDay')(day.index))) removeDay(day.id)
-              }}
+              onClearDay={() =>
+                setPendingDayAction({
+                  type: 'clear',
+                  dayId: day.id,
+                  index: day.index,
+                  blockCount: day.blocks.length,
+                })
+              }
+              onRemoveDay={() =>
+                setPendingDayAction({
+                  type: 'remove',
+                  dayId: day.id,
+                  index: day.index,
+                  blockCount: day.blocks.length,
+                })
+              }
               dropIndex={visibleDropTarget?.containerId === day.id ? visibleDropTarget.index : null}
               activeBlockId={activeBlockId}
             />
@@ -315,6 +343,44 @@ export function BoardView({ selectedBlockId, onSelectBlock, onSwitchTab }: Props
         dayId={disruption.dayId}
         onClose={() => setDisruption({ open: false })}
       />
+
+      {pendingDayAction && (
+        <Modal
+          title={
+            pendingDayAction.type === 'remove'
+              ? t(locale, 'confirmRemoveDayTitle')(pendingDayAction.index)
+              : t(locale, 'confirmClearDayTitle')(pendingDayAction.index)
+          }
+          onClose={() => setPendingDayAction(null)}
+          maxWidthClassName="max-w-md"
+          bodyClassName="space-y-4"
+          footer={
+            <>
+              <Button variant="outline" onClick={() => setPendingDayAction(null)}>
+                {locale === 'zh' ? '取消' : 'Cancel'}
+              </Button>
+              <Button variant="danger" onClick={confirmDayAction}>
+                {pendingDayAction.type === 'remove'
+                  ? t(locale, 'removeDay')
+                  : t(locale, 'clearDay')}
+              </Button>
+            </>
+          }
+        >
+          <div className="rounded-2xl border border-red-100 bg-red-50/55 px-4 py-3">
+            <div className="text-sm font-semibold text-ink-900">
+              {t(locale, 'dayBadge')(pendingDayAction.index)}
+              {' · '}
+              {pendingDayAction.blockCount} {locale === 'zh' ? '项活动' : 'items'}
+            </div>
+            <p className="mt-1 text-sm leading-6 text-ink-600">
+              {pendingDayAction.type === 'remove'
+                ? t(locale, 'confirmRemoveDayBody')
+                : t(locale, 'confirmClearDayBody')}
+            </p>
+          </div>
+        </Modal>
+      )}
     </div>
   )
 }

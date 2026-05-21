@@ -7,13 +7,23 @@ interface Props {
   locale: Locale
   onOpenLibrary: () => void
   onOpenSettings: () => void
-  onClearTrip: () => void
+  onNewTrip: () => void
+  onClearArrangements: () => void
   hasTrip: boolean
   tab: Tab
   onTab: (t: Tab) => void
 }
 
-export function Header({ locale, onOpenLibrary, onOpenSettings, onClearTrip, hasTrip, tab, onTab }: Props) {
+export function Header({
+  locale,
+  onOpenLibrary,
+  onOpenSettings,
+  onNewTrip,
+  onClearArrangements,
+  hasTrip,
+  tab,
+  onTab,
+}: Props) {
   const tabs: Array<SegmentedOption<Tab>> = [
     { value: 'board', label: t(locale, 'tabBoard') },
     { value: 'map', label: t(locale, 'tabMap'), disabled: !hasTrip },
@@ -41,23 +51,32 @@ export function Header({ locale, onOpenLibrary, onOpenSettings, onClearTrip, has
           <Button
             variant="quiet"
             className="text-ink-500 hover:text-brand-700"
+            onClick={onNewTrip}
+            title={t(locale, 'newTripAction')}
+          >
+            <span className="hidden sm:inline">{t(locale, 'newTripAction')}</span>
+            <span className="sm:hidden">{locale === 'zh' ? '新建' : 'New'}</span>
+          </Button>
+          {hasTrip && (
+            <Button
+              variant="quiet"
+              className="text-ink-500 hover:text-red-700"
+              onClick={onClearArrangements}
+              title={t(locale, 'clearArrangements')}
+            >
+              <span className="hidden sm:inline">{t(locale, 'clearArrangements')}</span>
+              <span className="sm:hidden">{locale === 'zh' ? '清空' : 'Clear'}</span>
+            </Button>
+          )}
+          <Button
+            variant="quiet"
+            className="text-ink-500 hover:text-brand-700"
             onClick={onOpenLibrary}
             title={locale === 'zh' ? '我的行程' : 'My Trips'}
           >
             <span className="hidden sm:inline">{locale === 'zh' ? '我的行程' : 'Trips'}</span>
             <span className="sm:hidden">{locale === 'zh' ? '行程' : 'Trips'}</span>
           </Button>
-          {hasTrip && (
-            <Button
-              variant="quiet"
-              className="text-ink-500 hover:text-red-700"
-              onClick={onClearTrip}
-              title={t(locale, 'deleteTrip')}
-            >
-              <span className="hidden sm:inline">{t(locale, 'deleteTrip')}</span>
-              <span className="sm:hidden">Clear</span>
-            </Button>
-          )}
           <Button
             variant="quiet"
             className="h-8 w-8 p-0"

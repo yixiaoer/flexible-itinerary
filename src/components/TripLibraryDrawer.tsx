@@ -1,10 +1,26 @@
-import { useRef, useState, type KeyboardEvent, type MouseEvent } from 'react'
+import { useRef, useState, type KeyboardEvent, type MouseEvent, type ReactNode } from 'react'
+import {
+  closestCenter,
+  DndContext,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core'
+import {
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 import { useSettings } from '../store/settings'
 import { useTripStore } from '../store/trip'
 import type { Trip, TripStatus } from '../types'
 import { fmtDuration, shortDateLabel } from '../lib/time'
 import { TRIP_STATUSES, tripStatus } from '../lib/tripStatus'
-import { BlankState, Button, Drawer } from './ui'
+import { BlankState, Button, Drawer, Modal } from './ui'
 
 interface Props {
   open: boolean
@@ -32,6 +48,11 @@ const labels = {
     saveOk: '已保存一个版本。',
     importFail: '导入失败：请选择有效的行程 JSON。',
     confirmDelete: '确认删除这个本地行程？',
+    confirmDeleteTitle: '删除这个行程？',
+    confirmDeleteBody: '删除后，这个本地行程会从“我的行程”中移除。这个操作不会影响你导出的 JSON 备份。',
+    cancel: '取消',
+    confirm: '确认删除',
+    dragHandle: '拖动排序',
     candidates: '候选',
     items: '活动',
     statusLabels: {
@@ -60,6 +81,11 @@ const labels = {
     saveOk: 'Version saved.',
     importFail: 'Import failed: choose a valid trip JSON file.',
     confirmDelete: 'Delete this local trip?',
+    confirmDeleteTitle: 'Delete this trip?',
+    confirmDeleteBody: 'This removes the local trip from My Trips. Any JSON backup you exported will not be affected.',
+    cancel: 'Cancel',
+    confirm: 'Delete trip',
+    dragHandle: 'Drag to reorder',
     candidates: 'candidates',
     items: 'items',
     statusLabels: {
@@ -85,8 +111,14 @@ export function TripLibraryDrawer({ open, onClose, onTripOpened }: Props) {
   const setLibraryTripStatus = useTripStore((s) => s.setLibraryTripStatus)
   const saveTripToLibrary = useTripStore((s) => s.saveTripToLibrary)
   const createBlankTrip = useTripStore((s) => s.createBlankTrip)
+  const reorderLibraryTrip = useTripStore((s) => s.reorderLibraryTrip)
   const fileRef = useRef<HTMLInputElement | null>(null)
   const [message, setMessage] = useState<string | null>(null)
+  const [pendingDelete, setPendingDelete] = useState<Trip | null>(null)
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  )
 
   const openTrip = (id: string) => {
     loadLibraryTrip(id)
@@ -152,90 +184,167 @@ export function TripLibraryDrawer({ open, onClose, onTripOpened }: Props) {
     }
   }
 
+  const confirmDeleteTrip = () => {
+    if (!pendingDelete) return
+    deleteLibraryTrip(pendingDelete.id)
+    setPendingDelete(null)
+  }
+
+  const pendingDeleteTitle = pendingDelete
+    ? pendingDelete.meta.title || pendingDelete.meta.countries.join(', ') || (locale === 'zh' ? '未命名行程' : 'Untitled trip')
+    : ''
+
+  const onDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event
+    if (!over || active.id === over.id) return
+    reorderLibraryTrip(String(active.id), String(over.id))
+  }
+
   return (
-    <Drawer open={open} title={text.title} onClose={onClose} className="max-w-xl">
-      <div className="space-y-4">
-        <p className="text-sm leading-6 text-ink-600">{text.subtitle}</p>
-        <div className="grid gap-2 sm:grid-cols-3">
-          <button
-            type="button"
-            className="group rounded-3xl border border-brand-100/80 bg-white/75 px-4 py-3 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-brand-200 hover:bg-white hover:shadow-card"
-            onClick={startBlankTrip}
-          >
-            <div className="flex items-center justify-between gap-3">
-              <span className="text-sm font-semibold text-ink-900">{text.newTrip}</span>
-              <span className="flex h-7 w-7 items-center justify-center rounded-full bg-brand-50 text-brand-600 transition group-hover:bg-brand-100">
-                +
-              </span>
+    <>
+      <Drawer open={open} title={text.title} onClose={onClose} className="max-w-xl">
+        <div className="space-y-4">
+          <p className="text-sm leading-6 text-ink-600">{text.subtitle}</p>
+          <div className="grid gap-2 sm:grid-cols-3">
+            <button
+              type="button"
+              className="group rounded-3xl border border-brand-100/80 bg-white/75 px-4 py-3 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-brand-200 hover:bg-white hover:shadow-card"
+              onClick={startBlankTrip}
+            >
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-sm font-semibold text-ink-900">{text.newTrip}</span>
+                <span className="flex h-7 w-7 items-center justify-center rounded-full bg-brand-50 text-brand-600 transition group-hover:bg-brand-100">
+                  +
+                </span>
+              </div>
+              <div className="mt-1 text-caption leading-5 text-ink-500">{text.newTripHint}</div>
+            </button>
+            <button
+              type="button"
+              className="group rounded-3xl border border-brand-100/80 bg-white/75 px-4 py-3 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-brand-200 hover:bg-white hover:shadow-card disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:translate-y-0 disabled:hover:shadow-sm"
+              onClick={saveCurrentTrip}
+              disabled={!trip}
+            >
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-sm font-semibold text-ink-900">{text.saveCurrent}</span>
+                <span className="flex h-7 w-7 items-center justify-center rounded-full bg-brand-50 text-brand-600 transition group-hover:bg-brand-100">
+                  ✓
+                </span>
+              </div>
+              <div className="mt-1 text-caption leading-5 text-ink-500">{text.saveCurrentHint}</div>
+            </button>
+            <button
+              type="button"
+              className="group rounded-3xl border border-accent-100/80 bg-white/75 px-4 py-3 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-accent-200 hover:bg-white hover:shadow-card"
+              onClick={() => fileRef.current?.click()}
+            >
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-sm font-semibold text-ink-900">{text.importJson}</span>
+                <span className="flex h-7 w-7 items-center justify-center rounded-full bg-accent-50 text-accent-600 transition group-hover:bg-accent-100">
+                  ↑
+                </span>
+              </div>
+              <div className="mt-1 text-caption leading-5 text-ink-500">{text.importJsonHint}</div>
+            </button>
+            <input
+              ref={fileRef}
+              type="file"
+              accept="application/json,.json"
+              className="hidden"
+              onChange={(e) => void importFile(e.target.files?.[0])}
+            />
+          </div>
+
+          {message && (
+            <div className="rounded-2xl border border-brand-100 bg-brand-50/70 px-3 py-2 text-sm text-ink-700">
+              {message}
             </div>
-            <div className="mt-1 text-caption leading-5 text-ink-500">{text.newTripHint}</div>
-          </button>
-          <button
-            type="button"
-            className="group rounded-3xl border border-brand-100/80 bg-white/75 px-4 py-3 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-brand-200 hover:bg-white hover:shadow-card disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:translate-y-0 disabled:hover:shadow-sm"
-            onClick={saveCurrentTrip}
-            disabled={!trip}
-          >
-            <div className="flex items-center justify-between gap-3">
-              <span className="text-sm font-semibold text-ink-900">{text.saveCurrent}</span>
-              <span className="flex h-7 w-7 items-center justify-center rounded-full bg-brand-50 text-brand-600 transition group-hover:bg-brand-100">
-                ✓
-              </span>
-            </div>
-            <div className="mt-1 text-caption leading-5 text-ink-500">{text.saveCurrentHint}</div>
-          </button>
-          <button
-            type="button"
-            className="group rounded-3xl border border-accent-100/80 bg-white/75 px-4 py-3 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-accent-200 hover:bg-white hover:shadow-card"
-            onClick={() => fileRef.current?.click()}
-          >
-            <div className="flex items-center justify-between gap-3">
-              <span className="text-sm font-semibold text-ink-900">{text.importJson}</span>
-              <span className="flex h-7 w-7 items-center justify-center rounded-full bg-accent-50 text-accent-600 transition group-hover:bg-accent-100">
-                ↑
-              </span>
-            </div>
-            <div className="mt-1 text-caption leading-5 text-ink-500">{text.importJsonHint}</div>
-          </button>
-          <input
-            ref={fileRef}
-            type="file"
-            accept="application/json,.json"
-            className="hidden"
-            onChange={(e) => void importFile(e.target.files?.[0])}
-          />
+          )}
+
+          {library.length === 0 ? (
+            <BlankState title={text.empty} description={text.emptyHint} className="bg-white/80" />
+          ) : (
+            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
+              <SortableContext items={library.map((item) => item.id)} strategy={verticalListSortingStrategy}>
+                <div className="space-y-3">
+                  {library.map((item) => (
+                    <SortableTripLibraryItem
+                      key={item.id}
+                      trip={item}
+                      active={trip?.id === item.id}
+                      locale={locale}
+                      labels={text}
+                      onOpen={() => openTrip(item.id)}
+                      onDuplicate={() => duplicateTrip(item.id)}
+                      onExport={() => exportTrip(item)}
+                      onStatusChange={(status) => setLibraryTripStatus(item.id, status)}
+                      onDelete={() => setPendingDelete(item)}
+                    />
+                  ))}
+                </div>
+              </SortableContext>
+            </DndContext>
+          )}
         </div>
+      </Drawer>
 
-        {message && (
-          <div className="rounded-2xl border border-brand-100 bg-brand-50/70 px-3 py-2 text-sm text-ink-700">
-            {message}
+      {pendingDelete && (
+        <Modal
+          title={text.confirmDeleteTitle}
+          onClose={() => setPendingDelete(null)}
+          maxWidthClassName="max-w-md"
+          bodyClassName="space-y-4"
+          footer={
+            <>
+              <Button variant="outline" onClick={() => setPendingDelete(null)}>
+                {text.cancel}
+              </Button>
+              <Button variant="danger" onClick={confirmDeleteTrip}>
+                {text.confirm}
+              </Button>
+            </>
+          }
+        >
+          <div className="rounded-2xl border border-red-100 bg-red-50/55 px-4 py-3">
+            <div className="text-sm font-semibold text-ink-900">{pendingDeleteTitle}</div>
+            <p className="mt-1 text-sm leading-6 text-ink-600">{text.confirmDeleteBody}</p>
           </div>
-        )}
+        </Modal>
+      )}
+    </>
+  )
+}
 
-        {library.length === 0 ? (
-          <BlankState title={text.empty} description={text.emptyHint} className="bg-white/80" />
-        ) : (
-          <div className="space-y-3">
-            {library.map((item) => (
-              <TripLibraryItem
-                key={item.id}
-                trip={item}
-                active={trip?.id === item.id}
-                locale={locale}
-                labels={text}
-                onOpen={() => openTrip(item.id)}
-                onDuplicate={() => duplicateTrip(item.id)}
-                onExport={() => exportTrip(item)}
-                onStatusChange={(status) => setLibraryTripStatus(item.id, status)}
-                onDelete={() => {
-                  if (confirm(text.confirmDelete)) deleteLibraryTrip(item.id)
-                }}
-              />
-            ))}
-          </div>
-        )}
-      </div>
-    </Drawer>
+function SortableTripLibraryItem(props: Omit<Parameters<typeof TripLibraryItem>[0], 'dragHandle'>) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: props.trip.id,
+  })
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  }
+  const dragHandle = (
+    <button
+      type="button"
+      className="flex h-9 w-9 shrink-0 touch-none cursor-grab items-center justify-center rounded-full border border-brand-100 bg-white/80 text-ink-400 shadow-sm transition hover:border-brand-200 hover:bg-brand-50 hover:text-brand-600 active:cursor-grabbing"
+      aria-label={props.labels.dragHandle}
+      title={props.labels.dragHandle}
+      onClick={(event) => event.stopPropagation()}
+      {...attributes}
+      {...listeners}
+    >
+      <span className="text-lg leading-none">≡</span>
+    </button>
+  )
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={isDragging ? 'relative z-20 opacity-80' : undefined}
+    >
+      <TripLibraryItem {...props} dragHandle={dragHandle} />
+    </div>
   )
 }
 
@@ -249,6 +358,7 @@ function TripLibraryItem({
   onExport,
   onStatusChange,
   onDelete,
+  dragHandle,
 }: {
   trip: Trip
   active: boolean
@@ -259,6 +369,7 @@ function TripLibraryItem({
   onExport: () => void
   onStatusChange: (status: TripStatus) => void
   onDelete: () => void
+  dragHandle: ReactNode
 }) {
   const scheduled = trip.days.flatMap((day) => day.blocks)
   const totalDuration = scheduled.reduce((sum, block) => sum + (block.durationMin ?? 0), 0)
@@ -298,7 +409,7 @@ function TripLibraryItem({
       }`}
     >
       <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
+        <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
             <h3 className="truncate text-base font-semibold text-ink-900">{title}</h3>
             {active && <span className="chip-brand">{locale === 'zh' ? '当前' : 'Current'}</span>}
@@ -308,19 +419,22 @@ function TripLibraryItem({
             {new Date(trip.updatedAt).toLocaleString(locale === 'zh' ? 'zh-CN' : 'en-US')}
           </p>
         </div>
-        <select
-          className={`shrink-0 rounded-full border px-2.5 py-1 text-caption font-semibold outline-none transition ${statusTone(status)}`}
-          value={status}
-          onClick={(event) => event.stopPropagation()}
-          onChange={(event) => onStatusChange(event.target.value as TripStatus)}
-          aria-label={locale === 'zh' ? '行程状态' : 'Trip status'}
-        >
-          {TRIP_STATUSES.map((item) => (
-            <option key={item} value={item}>
-              {labels.statusLabels[item]}
-            </option>
-          ))}
-        </select>
+        <div className="flex shrink-0 items-center gap-2">
+          <select
+            className={`rounded-full border px-2.5 py-1 text-caption font-semibold outline-none transition ${statusTone(status)}`}
+            value={status}
+            onClick={(event) => event.stopPropagation()}
+            onChange={(event) => onStatusChange(event.target.value as TripStatus)}
+            aria-label={locale === 'zh' ? '行程状态' : 'Trip status'}
+          >
+            {TRIP_STATUSES.map((item) => (
+              <option key={item} value={item}>
+                {labels.statusLabels[item]}
+              </option>
+            ))}
+          </select>
+          {dragHandle}
+        </div>
       </div>
       <div className="mt-3 flex flex-wrap gap-2">
         <Button size="sm" variant="outline" onClick={(event) => runControl(event, onDuplicate)}>{labels.duplicate}</Button>

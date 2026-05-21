@@ -1,84 +1,17 @@
-import { useEffect, useMemo } from 'react'
-import { MapContainer, TileLayer, Marker, useMap } from 'react-leaflet'
-import L from 'leaflet'
+import { useMemo } from 'react'
 import { useTripStore } from '../store/trip'
 import { useSettings } from '../store/settings'
 import { t } from '../i18n/messages'
-import { UNSCHEDULED_ID, type Block, type Day } from '../types'
+import { type Block, type Day } from '../types'
 import { fmtDuration, shortDateLabel, weekdayLabel } from '../lib/time'
-import { DAY_PIN_PALETTE, makeMapPinIcon, MAP_PIN_COLORS } from '../lib/mapPins'
-import { useGeocodeBlocks } from '../hooks/useGeocodeBlocks'
-import { Alert, BlankState, Card } from './ui'
+import { Alert, Card } from './ui'
 
 interface Props {
   selectedBlockId: string | null
 }
 
-interface Pin {
-  block: Block
-  day: Day | null
-  lat: number
-  lng: number
-  color: string
-  index: number
-}
-
-function FitBounds({ pins }: { pins: Pin[] }) {
-  const map = useMap()
-  useEffect(() => {
-    if (pins.length === 0) return
-    if (pins.length === 1) {
-      map.setView([pins[0].lat, pins[0].lng], 12)
-      return
-    }
-    const b = L.latLngBounds(pins.map((p) => [p.lat, p.lng] as [number, number]))
-    map.fitBounds(b, { padding: [30, 30] })
-  }, [map, pins])
-  return null
-}
-
 export function RightPanel({ selectedBlockId }: Props) {
   const trip = useTripStore((s) => s.trip)
-  const locale = useSettings((s) => s.locale)
-
-  // We pin everything that has lat/lng on the map: scheduled blocks AND
-  // candidates pool (so users can preview where unscheduled places sit).
-  const allBlocks = useMemo(() => {
-    if (!trip) return [] as Array<{ day: Day | null; block: Block; idx: number; containerId: string }>
-    let n = 0
-    const scheduled = trip.days.flatMap((d) =>
-      d.blocks.map((b) => {
-        n += 1
-        return { day: d as Day | null, block: b, idx: n, containerId: d.id }
-      }),
-    )
-    const unscheduled = trip.unscheduled.map((b) => {
-      n += 1
-      return { day: null as Day | null, block: b, idx: n, containerId: UNSCHEDULED_ID }
-    })
-    return [...scheduled, ...unscheduled]
-  }, [trip])
-
-  const geocoding = useGeocodeBlocks(allBlocks)
-
-  const pins: Pin[] = useMemo(
-    () =>
-      allBlocks
-        .filter(
-          ({ block }) =>
-            typeof block.place?.lat === 'number' &&
-            typeof block.place?.lng === 'number',
-        )
-        .map(({ block, day, idx }) => ({
-          block,
-          day,
-          lat: block.place!.lat!,
-          lng: block.place!.lng!,
-          color: day ? DAY_PIN_PALETTE[(day.index - 1) % DAY_PIN_PALETTE.length] : MAP_PIN_COLORS.gray,
-          index: idx,
-        })),
-    [allBlocks],
-  )
 
   const selected = useMemo(() => {
     if (!trip || !selectedBlockId) return null
@@ -91,53 +24,14 @@ export function RightPanel({ selectedBlockId }: Props) {
     return null
   }, [trip, selectedBlockId])
 
-  const center: [number, number] = pins[0]
-    ? [pins[0].lat, pins[0].lng]
-    : [35.6764, 139.65] // Tokyo fallback
-
-  return (
-    <div className="flex h-full flex-col gap-4">
-      {/* Mini map */}
-      <div className="surface-glass relative h-[320px] overflow-hidden">
-        <MapContainer
-          center={center}
-          zoom={11}
-          className="h-full w-full"
-          scrollWheelZoom
-        >
-          <TileLayer
-            attribution='&copy; OSM'
-            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-          />
-          <FitBounds pins={pins} />
-          {pins.map((p) => (
-            <Marker
-              key={p.block.id}
-              position={[p.lat, p.lng]}
-              icon={makeMapPinIcon(p.color, p.index)}
-            />
-          ))}
-        </MapContainer>
-        {geocoding && (
-          <div className="pointer-events-none absolute right-2 top-2 rounded-md bg-white/90 px-2 py-0.5 text-caption text-ink-500 shadow-sm">
-            {locale === 'zh' ? '解析地点中…' : 'Geocoding…'}
-          </div>
-        )}
-      </div>
-
-      {/* Selected block detail */}
-      <DetailCard selected={selected} />
-    </div>
-  )
+  return <DetailCard selected={selected} />
 }
 
 function DetailCard({ selected }: { selected: { day: Day | null; block: Block } | null }) {
   const locale = useSettings((s) => s.locale)
 
   if (!selected) {
-    return (
-      <BlankState className="flex-1 bg-white/80" title={t(locale, 'selectACard')} />
-    )
+    return null
   }
 
   const { block, day } = selected

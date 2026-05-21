@@ -2,6 +2,8 @@
 
 [中文版](./README.zh.md)
 
+Page: https://yixiaoer.github.io/flexible-itinerary/
+
 A flexible itinerary planner for independent travel. Start with a rough day-by-day plan, then refine it into morning, afternoon, evening, or minute-level blocks. Lock fixed events like shows, flights, trains, and sunrise plans, then arrange everything else around them.
 
 ## Core Capabilities
@@ -79,6 +81,7 @@ Users do not need to install or configure a local environment. Open the deployed
 - [ ] Custom version history, version comparison, rollback, and named versions; currently only Save version snapshots are supported.
 - [ ] Account login, passwords, Apple ID, iCloud, or cross-device sync.
 - [ ] Multi-user collaboration.
+- [ ] Mobile web layout is not optimized yet.
 
 ### Trip Overview and Status Tags
 

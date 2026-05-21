@@ -1,0 +1,17 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Flexible Itinerary</title>
+    <script>
+      // SPA redirect for GitHub Pages: rewrite the URL so the SPA can render
+      // any route on first load, e.g. /flexible-itinerary/anything.
+      // We just send users to the base index.html — this app is single-route
+      // anyway, so no path preservation is necessary.
+      var seg = location.pathname.split('/').filter(Boolean)
+      var base = seg.length > 0 ? '/' + seg[0] + '/' : '/'
+      location.replace(base)
+    </script>
+  </head>
+  <body></body>
+</html>

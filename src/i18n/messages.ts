@@ -1,0 +1,397 @@
+// Bilingual messages. Keep keys flat for simplicity. Both languages should
+// read naturally, not as transliterations of each other.
+import type { Locale } from '../types'
+
+export const MESSAGES = {
+  zh: {
+    appTitle: 'Flexible Itinerary',
+
+    // header / nav
+    settings: '设置',
+    deleteTrip: '清空行程',
+    confirmDeleteTrip: '确认清空当前整个行程？此操作不可撤销。',
+    tabBoard: 'Board',
+    tabMap: '地图',
+    tabReview: 'Review',
+
+    // settings
+    language: '界面语言',
+    apiBaseUrl: '接口地址',
+    apiKey: 'API Key',
+    model: '模型',
+    apiKeyHint: 'AI 配置即将支持。当前版本先专注本地行程管理与手动规划。',
+    apiKeyStored: 'AI 配置即将支持；暂时不需要填写 Key。',
+    extraSystem: '额外系统提示（可选）',
+    extraSystemPh: 'AI 配置即将支持',
+    temperature: '随机度',
+    fillKeyFirst: '请先在设置中填好 API Key',
+
+    // sidebar / form
+    sidebarTitle: '行程输入',
+    destinations: '目的地',
+    destinationsPh: '比如：日本 东京',
+    addDestination: '+ 添加',
+    numDays: '天数',
+    dateRange: '出行日期',
+    placesWanted: '想去的地方（可选）',
+    placesWantedPh: '景点 / 街区',
+    addPlace: '+ 添加',
+    preferences: '偏好',
+    addPreference: '+ 添加偏好',
+    generate: 'AI 生成完整行程',
+    generating: '正在生成…',
+    seedManual: '手动开始 / 仅放入候选',
+    seedManualHint: '不调用 AI，直接把必去清单放入候选池，由你来排',
+    sidebarHint: '轻松安排，灵活调整出行计划，AI 支持待上线...',
+    confirmRegen: '当前行程会被替换，已锁定的项目也会丢失。继续？',
+
+    // sidebar vibe presets (clickable suggestions)
+    vibePresets_relaxed: '悠闲放松，少走路',
+    vibePresets_food: '美食体验',
+    vibePresets_culture: '文化 & 购物',
+    vibePresets_nature: '自然风光',
+    vibePresets_photo: '出片为主',
+    vibePresets_speedrun: '特种兵打卡',
+    vibePresets_late: '不要太早起',
+
+    // empty state
+    emptyTitle: '从左侧填写信息开始规划',
+    emptyHint: '生成后你可以拖动顺序、切换粒度、锁定关键事项。所有数据只保存在你的浏览器。',
+
+    // board
+    countriesPrefix: '目的地：',
+    daysSummary: (n: number) => `${n} 天`,
+    validateAll: '校验',
+    validateHint: '调用真实天气 + AI 检查营业时间，给每个安排打可信度标',
+    validating: '校验中…',
+    replan: 'AI 重排',
+    replanHint: '把当前情况告诉 AI，它会保留所有锁定项，重新安排其它的',
+    addDay: '加一天',
+    removeDay: '删除这一天',
+    confirmRemoveDay: (n: number) => `确认删除「第 ${n} 天」？`,
+
+    // day column
+    dayBadge: (n: number) => `第 ${n} 天`,
+    morning: '上午',
+    afternoon: '下午',
+    evening: '晚上',
+    daypartFlexible: '灵活',
+    addBlock: '+ 添加活动',
+    emptyDay: '这一天还没有安排',
+    replanThisDay: '重排这一天',
+
+    // block card
+    edit: '编辑',
+    delete: '删除',
+    lock: '锁定',
+    unlock: '解锁',
+    locked: '已锁定',
+    lockedTip: '已锁定，AI 重排时不会改动',
+    optional: '可选',
+    optionalTip: '可选项 — 时间紧时 AI 可以略过',
+    riskWeather: '天气风险',
+
+    // granularity
+    gFlexible: '灵活',
+    gWindow: '时间窗',
+    gPrecise: '精确',
+    gFlexibleDesc: '只给个大概时段，AI 自由排',
+    gWindowDesc: '在指定区间内 AI 自由放',
+    gPreciseDesc: '指定精确开始时间',
+
+    // block editor
+    editBlock: '编辑活动',
+    title: '标题',
+    titlePh: '比如：清水寺；金阁寺午餐；JR 京都→大阪',
+    address: '地点',
+    addressPh: '景点 / 餐厅 / 街区名',
+    intro: '简介',
+    introPh: '一两句话说明这是什么地方、为什么值得',
+    notes: '备注',
+    notesPh: '交通、提示、个人想法等等',
+    activityKind: '类型',
+    duration: '时长',
+    durationUnit: '分钟',
+    granularity: '时间粒度',
+    daypartLabel: '时段',
+    startTime: '开始',
+    endTime: '结束',
+    indoor: '室内',
+    outdoor: '室外',
+    save: '保存',
+    cancel: '取消',
+    lockReasonPh: '锁定原因（机票号码 / 演出票 / 朋友约好…）',
+    markOptional: '标记为可选',
+    kindSightseeing: '景点',
+    kindFood: '餐饮',
+    kindTransport: '交通',
+    kindFlight: '航班',
+    kindTrain: '火车',
+    kindHotel: '住宿',
+    kindShow: '演出 / 票务',
+    kindOutdoor: '户外',
+    kindIndoor: '室内活动',
+    kindRest: '休息',
+    kindOther: '其它',
+
+    // candidates strip
+    candidatesTitle: '候选 / 还没安排',
+    candidatesEmpty: '没有候选项目。从左侧"想去的地方"加入，或让 AI 推荐。',
+    addCandidate: '+ 添加',
+    aiSuggestMore: 'AI 建议更多',
+    aiSuggesting: '正在请 AI 推荐…',
+
+    // status bar
+    statLocked: '已锁定',
+    statWindow: '时间窗',
+    statFlexible: '灵活',
+    statRisk: '风险',
+    statOptional: '可选',
+    statCandidates: '候选',
+    viewReview: '查看行程评估',
+
+    // evidence
+    fitOk: '适合',
+    fitWarn: '注意',
+    fitBad: '冲突',
+    closed: '当天可能不开',
+    weather: '天气',
+
+    // disruption
+    replanTitle: 'AI 重排',
+    replanScopeAll: '重排剩余整个行程',
+    replanContextLabel: '现在的情况 / 你想做的调整',
+    replanContextPh:
+      '比如：今天下大雨；睡过头到 11 点了；机票延误改到下午 3 点；想去拜访朋友 2 小时；后天那个景点临时关门',
+    replanFocusOnly: (label: string) => `只重排 ${label}`,
+    replanGo: '执行',
+    replanLockNotice: '所有已锁定的项目（机票、演出、海边日出等）会原样保留，AI 只会调整其它项目。',
+
+    // right panel / detail
+    selectedTitle: '行程详情',
+    selectACard: '点击中间卡片以查看详情',
+    riskLevel: '风险等级',
+    riskLow: '低',
+    riskMedium: '中',
+    riskHigh: '高',
+    alternatives: '备选 / 提示',
+    selectedDate: (label: string) => label,
+    timeOnDate: (date: string, time: string) => `${date} · ${time}`,
+
+    // review tab
+    reviewTitle: '行程评估',
+    reviewSubtitle: '总览、可信度、风险与建议',
+    reviewByDay: '按天概览',
+    reviewIssues: '需要注意',
+    reviewNoIssues: '没有发现明显冲突 ✓',
+    reviewTotalBlocks: '总计活动',
+    reviewLockedBlocks: '已锁定',
+    reviewWindowBlocks: '时间窗',
+    reviewWeatherChecked: '已校验天气的天数',
+
+    // misc
+    rawFallback: 'AI 返回不是合法 JSON，已尽力解析。原文：',
+  },
+  en: {
+    appTitle: 'Flexible Itinerary',
+
+    settings: 'Settings',
+    deleteTrip: 'Clear trip',
+    confirmDeleteTrip: 'Clear the entire current trip? This cannot be undone.',
+    tabBoard: 'Board',
+    tabMap: 'Map',
+    tabReview: 'Review',
+
+    language: 'Language',
+    apiBaseUrl: 'API base URL',
+    apiKey: 'API key',
+    model: 'Model',
+    apiKeyHint:
+      'AI configuration is coming soon. This version focuses on local trip management and manual planning.',
+    apiKeyStored: 'AI configuration is coming soon; no key is needed for now.',
+    extraSystem: 'Extra system prompt (optional)',
+    extraSystemPh: 'AI configuration coming soon',
+    temperature: 'Temperature',
+    fillKeyFirst: 'Set your API key in Settings first.',
+
+    sidebarTitle: 'Trip input',
+    destinations: 'Destinations',
+    destinationsPh: 'e.g. Tokyo, Japan',
+    addDestination: '+ Add',
+    numDays: 'Days',
+    dateRange: 'Travel dates',
+    placesWanted: 'Must-visit places (optional)',
+    placesWantedPh: 'spot / district',
+    addPlace: '+ Add',
+    preferences: 'Preferences',
+    addPreference: '+ Add preference',
+    generate: 'Generate with AI',
+    generating: 'Generating…',
+    seedManual: 'Start manually / candidates only',
+    seedManualHint:
+      'Skip the AI: drop your must-visit list into a candidates pool and arrange it yourself.',
+    sidebarHint: 'Plan your trip. AI support coming soon.',
+    confirmRegen: 'This will replace the current itinerary, including locked items. Continue?',
+
+    vibePresets_relaxed: 'Relaxed pace, less walking',
+    vibePresets_food: 'Foodie experience',
+    vibePresets_culture: 'Culture & shopping',
+    vibePresets_nature: 'Nature & outdoors',
+    vibePresets_photo: 'Photogenic spots first',
+    vibePresets_speedrun: 'Speed-run, hit it all',
+    vibePresets_late: 'No early mornings',
+
+    emptyTitle: 'Fill in the form on the left to start',
+    emptyHint:
+      'Generated items can be reordered, switched between time granularities, and locked. All data lives only in your browser.',
+
+    countriesPrefix: 'Destinations: ',
+    daysSummary: (n: number) => `${n} day${n === 1 ? '' : 's'}`,
+    validateAll: 'Validate',
+    validateHint:
+      'Pulls real weather + AI sanity-checks open hours, marking each item with a confidence tag.',
+    validating: 'Validating…',
+    replan: 'AI replan',
+    replanHint:
+      'Tell the AI what changed — it keeps every locked item and reflows the rest.',
+    addDay: 'Add day',
+    removeDay: 'Remove day',
+    confirmRemoveDay: (n: number) => `Remove Day ${n}?`,
+
+    dayBadge: (n: number) => `Day ${n}`,
+    morning: 'Morning',
+    afternoon: 'Afternoon',
+    evening: 'Evening',
+    daypartFlexible: 'Flexible',
+    addBlock: '+ Add item',
+    emptyDay: 'Nothing planned yet',
+    replanThisDay: 'Replan this day',
+
+    edit: 'Edit',
+    delete: 'Delete',
+    lock: 'Lock',
+    unlock: 'Unlock',
+    locked: 'Locked',
+    lockedTip: 'Locked — AI will not change this',
+    optional: 'Optional',
+    optionalTip: 'Optional — AI may drop it if time is tight',
+    riskWeather: 'Weather risk',
+
+    gFlexible: 'Flexible',
+    gWindow: 'Window',
+    gPrecise: 'Precise',
+    gFlexibleDesc: 'Only a daypart hint — AI places freely',
+    gWindowDesc: 'Within a bounded window — AI places anywhere inside',
+    gPreciseDesc: 'Pinned exact start time',
+
+    editBlock: 'Edit item',
+    title: 'Title',
+    titlePh: 'e.g. Kiyomizu-dera · Lunch at Kinkaku-ji · JR Kyoto → Osaka',
+    address: 'Place',
+    addressPh: 'Spot / restaurant / district',
+    intro: 'About',
+    introPh: 'A line or two on what it is and why it is worth visiting',
+    notes: 'Notes',
+    notesPh: 'Transit tips, reminders, personal thoughts…',
+    activityKind: 'Type',
+    duration: 'Duration',
+    durationUnit: 'minutes',
+    granularity: 'Time granularity',
+    daypartLabel: 'Daypart',
+    startTime: 'Start',
+    endTime: 'End',
+    indoor: 'Indoor',
+    outdoor: 'Outdoor',
+    save: 'Save',
+    cancel: 'Cancel',
+    lockReasonPh: 'Why locked (flight number / show ticket / friend appointment…)',
+    markOptional: 'Mark as optional',
+    kindSightseeing: 'Sightseeing',
+    kindFood: 'Food',
+    kindTransport: 'Transport',
+    kindFlight: 'Flight',
+    kindTrain: 'Train',
+    kindHotel: 'Hotel',
+    kindShow: 'Show / ticket',
+    kindOutdoor: 'Outdoor',
+    kindIndoor: 'Indoor activity',
+    kindRest: 'Rest',
+    kindOther: 'Other',
+
+    candidatesTitle: 'Candidates / unscheduled',
+    candidatesEmpty:
+      'No candidates yet. Add some from the left sidebar, or let AI suggest.',
+    addCandidate: '+ Add',
+    aiSuggestMore: 'AI suggest more',
+    aiSuggesting: 'Asking AI…',
+
+    statLocked: 'Locked',
+    statWindow: 'Window',
+    statFlexible: 'Flexible',
+    statRisk: 'Risk',
+    statOptional: 'Optional',
+    statCandidates: 'Candidates',
+    viewReview: 'View review',
+
+    fitOk: 'Good fit',
+    fitWarn: 'Heads up',
+    fitBad: 'Conflict',
+    closed: 'Likely closed that day',
+    weather: 'Weather',
+
+    replanTitle: 'AI replan',
+    replanScopeAll: 'Replan rest of trip',
+    replanContextLabel: 'What changed / what you want',
+    replanContextPh:
+      'e.g. heavy rain today; overslept until 11; flight pushed to 3pm; want to visit a friend for 2h; that museum is closed the day after tomorrow',
+    replanFocusOnly: (label: string) => `Replan only ${label}`,
+    replanGo: 'Run',
+    replanLockNotice:
+      'All locked items (flights, show tickets, sunrise hikes…) are kept verbatim. AI only reflows the rest.',
+
+    selectedTitle: 'Item details',
+    selectACard: 'Click a card to see details here',
+    riskLevel: 'Risk level',
+    riskLow: 'Low',
+    riskMedium: 'Medium',
+    riskHigh: 'High',
+    alternatives: 'Alternatives / tips',
+    selectedDate: (label: string) => label,
+    timeOnDate: (date: string, time: string) => `${date} · ${time}`,
+
+    reviewTitle: 'Trip review',
+    reviewSubtitle: 'Overview, confidence, risks and suggestions',
+    reviewByDay: 'Day-by-day overview',
+    reviewIssues: 'Heads-up',
+    reviewNoIssues: 'No obvious conflicts ✓',
+    reviewTotalBlocks: 'Total items',
+    reviewLockedBlocks: 'Locked',
+    reviewWindowBlocks: 'Time-windowed',
+    reviewWeatherChecked: 'Days with weather checked',
+
+    rawFallback: 'AI did not return valid JSON; tried best-effort parse. Raw:',
+  },
+} as const
+
+export type MessageKey = keyof (typeof MESSAGES)['zh']
+
+type ZhMessages = (typeof MESSAGES)['zh']
+type EnMessages = (typeof MESSAGES)['en']
+
+export function t<K extends MessageKey>(
+  locale: Locale,
+  key: K,
+): ZhMessages[K] extends string ? string : EnMessages[K] {
+  const msg = (MESSAGES[locale][key] ?? MESSAGES.zh[key]) as unknown
+  return msg as ZhMessages[K] extends string ? string : EnMessages[K]
+}
+
+export const VIBE_PRESET_KEYS: MessageKey[] = [
+  'vibePresets_relaxed',
+  'vibePresets_food',
+  'vibePresets_culture',
+  'vibePresets_nature',
+  'vibePresets_photo',
+  'vibePresets_speedrun',
+  'vibePresets_late',
+]

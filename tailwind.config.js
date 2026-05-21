@@ -1,0 +1,71 @@
+/** @type {import('tailwindcss').Config} */
+export default {
+  content: ['./index.html', './src/**/*.{ts,tsx}'],
+  theme: {
+    extend: {
+      colors: {
+        ink: {
+          50: '#fbf8f8',
+          100: '#f5eeee',
+          200: '#eadcdc',
+          300: '#d8c7cb',
+          400: '#8f7c88',
+          500: '#655465',
+          600: '#514555',
+          700: '#443c5e',
+          800: '#383149',
+          900: '#342e44',
+        },
+        brand: {
+          50: '#fbf2f4',
+          100: '#f7e4e8',
+          200: '#eccbd3',
+          300: '#ddaab6',
+          400: '#cc8798',
+          500: '#bf7185',
+          600: '#a85d70',
+          700: '#806c79',
+          800: '#604a59',
+          900: '#443c5e',
+        },
+        accent: {
+          50: '#fbf7fb',
+          100: '#f1eaf2',
+          200: '#e3d4e4',
+          400: '#bb99bf',
+          500: '#a99fbf',
+          600: '#806c79',
+        },
+      },
+      fontFamily: {
+        sans: [
+          'Inter',
+          'ui-sans-serif',
+          'system-ui',
+          '-apple-system',
+          'BlinkMacSystemFont',
+          '"Segoe UI"',
+          'Roboto',
+          '"Helvetica Neue"',
+          'Arial',
+          '"PingFang SC"',
+          '"Hiragino Sans GB"',
+          '"Microsoft YaHei"',
+          'sans-serif',
+        ],
+        serif: [
+          'Georgia',
+          '"Times New Roman"',
+          '"Songti SC"',
+          '"SimSun"',
+          'serif',
+        ],
+      },
+      boxShadow: {
+        card: '0 24px 70px rgba(68, 60, 94, 0.18)',
+        pop: '0 28px 80px rgba(68, 60, 94, 0.22)',
+      },
+    },
+  },
+  plugins: [],
+}

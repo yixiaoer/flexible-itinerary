@@ -385,35 +385,84 @@ export function TripSidebar({ onGenerated }: Props) {
         .map(normalizePlace),
     )
 
+    // Set of mustVisit keys that exist after this reconciliation. Used to
+    // backfill `sourcePlaceKey` on legacy blocks: if a block predates the
+    // field but its current title or place.name still matches a known
+    // mustVisit entry, we promote it now so future title edits are safe.
+    const currentMustVisitKeys = new Set(mustVisit.map(normalizePlace))
+    const resolutionKeys = new Set(
+      Object.keys(placeResolutions).map(normalizePlace),
+    )
+
+    // Track which sourcePlaceKeys are already claimed by some block, so the
+    // backfill pass below doesn't assign the same key to two blocks (which
+    // would create a hidden collision).
+    const claimedKeys = new Set<string>()
+    const allExistingBlocks: Block[] = [
+      ...baseTrip.days.flatMap((d) => d.blocks),
+      ...baseTrip.unscheduled,
+    ]
+    for (const b of allExistingBlocks) {
+      if (b.sourcePlaceKey) claimedKeys.add(b.sourcePlaceKey)
+    }
+
     // We match a block to its originating mustVisit entry by
     // `sourcePlaceKey`. Blocks created before this field existed (or added
-    // manually) fall back to title-matching so legacy data and brand-new
-    // hand-typed candidates still behave sanely.
+    // manually) fall back to title- and place.name-matching so legacy data
+    // and brand-new hand-typed candidates still behave sanely.
     const matchesKey = (block: Block, key: string) =>
       (block.sourcePlaceKey ?? normalizePlace(block.title)) === key
 
     const remapBlock = (block: Block): { block: Block; changed: boolean; remove: boolean } => {
-      const currentKey = block.sourcePlaceKey ?? normalizePlace(block.title)
-      if (removedMustVisit.has(currentKey)) {
-        return { block, changed: true, remove: true }
-      }
       let next = block
       let blockChanged = false
+
+      // Backfill sourcePlaceKey for legacy / map-added blocks whose title or
+      // place.name still matches a known mustVisit entry, but only if that
+      // key isn't already claimed by another block. This is a one-shot
+      // upgrade per block.
+      if (!next.sourcePlaceKey) {
+        const titleKey = normalizePlace(next.title)
+        const placeKey = normalizePlace(next.place?.name ?? '')
+        const candidates = [titleKey, placeKey].filter(
+          (k) => k && currentMustVisitKeys.has(k) && !claimedKeys.has(k),
+        )
+        const inferred = candidates[0]
+        if (inferred) {
+          next = { ...next, sourcePlaceKey: inferred }
+          claimedKeys.add(inferred)
+          blockChanged = true
+        }
+      }
+
+      const currentKey = next.sourcePlaceKey ?? normalizePlace(next.title)
+      if (removedMustVisit.has(currentKey)) {
+        return { block: next, changed: true, remove: true }
+      }
       const renameEntry = renameMap.get(currentKey)
       if (renameEntry) {
-        next = rekeyBlockPlace(next, renameEntry.previous, renameEntry.next)
-        if (next !== block) blockChanged = true
+        const renamed = rekeyBlockPlace(next, renameEntry.previous, renameEntry.next)
+        if (renamed !== next) {
+          next = renamed
+          blockChanged = true
+        }
       }
-      // Look up resolution by both the (new) sourcePlaceKey and the current
-      // title — covers manual entries that don't have a sourcePlaceKey yet.
-      const lookupName =
-        Array.from(Object.keys(placeResolutions)).find(
-          (name) => normalizePlace(name) === (next.sourcePlaceKey ?? normalizePlace(next.title)),
-        ) ?? next.title
-      const resolution = placeResolutions[lookupName]
+      // Look up resolution by sourcePlaceKey (or title for blocks that
+      // legitimately have neither, e.g. brand-new manual ones).
+      const lookupKey = next.sourcePlaceKey ?? normalizePlace(next.title)
+      const resolution = resolutionKeys.has(lookupKey)
+        ? placeResolutions[
+            Object.keys(placeResolutions).find(
+              (name) => normalizePlace(name) === lookupKey,
+            )!
+          ]
+        : undefined
       const resolved = applyPlaceResolution(next, resolution)
-      if (resolved !== next) blockChanged = true
-      return { block: resolved, changed: blockChanged, remove: false }
+      if (resolved !== next) {
+        next = resolved
+        blockChanged = true
+      }
+      return { block: next, changed: blockChanged, remove: false }
     }
 
     let changed = false

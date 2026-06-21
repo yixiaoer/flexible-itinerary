@@ -83,7 +83,7 @@ Users do not need to install or configure a local environment. Open the deployed
 - [ ] Custom version history, version comparison, rollback, and named versions; currently only Save version snapshots are supported.
 - [ ] Account login, passwords, Apple ID, iCloud, or cross-device sync.
 - [ ] Multi-user collaboration.
-- [ ] Mobile web layout is not optimized yet.
+- [x] Mobile web layout: the trip input collapses into a drawer; the board, candidates strip, and editor dialogs are usable on phones.
 
 ### Trip Overview and Status Tags
 

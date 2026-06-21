@@ -23,6 +23,7 @@ export default function App() {
   const [tab, setTab] = useState<Tab>('board')
   const [showSettings, setShowSettings] = useState(false)
   const [showLibrary, setShowLibrary] = useState(false)
+  const [showMobileSidebar, setShowMobileSidebar] = useState(false)
   const [pendingAction, setPendingAction] = useState<'newTrip' | 'clearArrangements' | null>(null)
   const [selectedBlockId, setSelectedBlockId] = useState<string | null>(null)
 
@@ -57,6 +58,7 @@ export default function App() {
       locale={locale}
       onOpenLibrary={() => setShowLibrary(true)}
       onOpenSettings={() => setShowSettings(true)}
+      onOpenSidebar={() => setShowMobileSidebar(true)}
       onNewTrip={() => {
         if (trip) setPendingAction('newTrip')
         else createBlankTrip()
@@ -93,6 +95,19 @@ export default function App() {
           setTab('board')
         }}
       />
+      <div className="lg:hidden">
+        <Drawer
+          open={showMobileSidebar}
+          side="right"
+          title={t(locale, 'sidebarTitle')}
+          onClose={() => setShowMobileSidebar(false)}
+        >
+          <TripSidebar key={trip?.id ?? 'empty-trip-mobile'} onGenerated={() => {
+            setTab('board')
+            setShowMobileSidebar(false)
+          }} />
+        </Drawer>
+      </div>
       {tab === 'board' && trip && selectedBlockId && (
         <div className="2xl:hidden">
           <Drawer

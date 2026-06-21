@@ -221,7 +221,7 @@ export function BoardView({ selectedBlockId, onSelectBlock, onSwitchTab }: Props
   }
 
   return (
-    <div className="flex h-full min-h-[calc(100vh-128px)] flex-col">
+    <div className="flex h-full min-h-[calc(100svh-128px)] flex-col">
       {validateError && (
         <ErrorState className="mb-3" message={validateError} />
       )}
@@ -291,7 +291,7 @@ export function BoardView({ selectedBlockId, onSelectBlock, onSwitchTab }: Props
           dropIndex={visibleDropTarget?.containerId === UNSCHEDULED_ID ? visibleDropTarget.index : null}
           activeBlockId={activeBlockId}
         />
-        <div className="kanban-scroll -mx-2 grid flex-1 grid-flow-col auto-cols-[minmax(272px,1fr)] gap-4 overflow-x-auto px-2 pb-4 pt-1">
+        <div className="kanban-scroll -mx-2 grid flex-1 grid-flow-col auto-cols-[minmax(240px,85vw)] gap-3 overflow-x-auto px-2 pb-4 pt-1 sm:auto-cols-[minmax(272px,1fr)] sm:gap-4">
           {trip.days.map((day) => (
             <DayColumn
               key={day.id}

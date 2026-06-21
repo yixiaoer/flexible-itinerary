@@ -5,7 +5,8 @@ import { useTripStore } from '../store/trip'
 import { useSettings } from '../store/settings'
 import { t, type MessageKey } from '../i18n/messages'
 import { DAYPART_DEFAULT_RANGE, fmtHHMM, parseHHMM } from '../lib/time'
-import { Button, FormSection, Modal, OptionTileGroup, type OptionTile } from './ui'
+import { geocodeOptions, type GeocodeHit } from '../lib/weather'
+import { Button, ErrorState, FormSection, Modal, OptionTileGroup, type OptionTile } from './ui'
 
 interface Props {
   dayId: string
@@ -35,7 +36,58 @@ export function BlockEditor({ dayId, block, onClose }: Props) {
   const [draft, setDraft] = useState<Block>(block)
   const [durationText, setDurationText] = useState(() => block.durationMin === undefined ? '' : String(block.durationMin))
 
+  const [mapSearch, setMapSearch] = useState('')
+  const [mapBusy, setMapBusy] = useState(false)
+  const [mapError, setMapError] = useState<string | null>(null)
+  const [mapHits, setMapHits] = useState<GeocodeHit[] | null>(null)
+
   const update = (patch: Partial<Block>) => setDraft({ ...draft, ...patch })
+
+  const runMapLookup = async () => {
+    const q = (mapSearch || draft.place?.name || draft.title || '').trim()
+    if (!q) return
+    setMapBusy(true)
+    setMapError(null)
+    setMapHits(null)
+    try {
+      const hits = await geocodeOptions(q, { count: 5 })
+      if (hits.length === 0) {
+        setMapHits([])
+        return
+      }
+      setMapHits(hits)
+    } catch (e) {
+      setMapError(e instanceof Error ? e.message : String(e))
+    } finally {
+      setMapBusy(false)
+    }
+  }
+
+  const applyMapHit = (hit: GeocodeHit) => {
+    const addressParts = [hit.admin1, hit.country].filter(Boolean).join(', ')
+    update({
+      place: {
+        ...draft.place,
+        name: draft.place?.name?.trim() || hit.name,
+        address: addressParts || draft.place?.address,
+        lat: hit.lat,
+        lng: hit.lng,
+      },
+    })
+    setMapHits(null)
+    setMapSearch('')
+  }
+
+  const clearMapCoords = () => {
+    update({
+      place: {
+        ...draft.place,
+        name: draft.place?.name ?? '',
+        lat: undefined,
+        lng: undefined,
+      },
+    })
+  }
   const readDuration = () => {
     const n = Number(durationText)
     if (!durationText || !Number.isFinite(n)) return undefined
@@ -184,6 +236,86 @@ export function BlockEditor({ dayId, block, onClose }: Props) {
           onChange={(e) => update({ place: { ...draft.place, name: e.target.value } })}
           placeholder={t(locale, 'addressPh')}
         />
+      </FormSection>
+
+      <FormSection label={t(locale, 'mapLookup')}>
+        <div className="space-y-2">
+          <p className="text-caption text-ink-500">{t(locale, 'mapLookupHint')}</p>
+          <form
+            className="flex flex-col gap-2 sm:flex-row"
+            onSubmit={(e) => {
+              e.preventDefault()
+              void runMapLookup()
+            }}
+          >
+            <input
+              className="input min-w-0 flex-1"
+              value={mapSearch}
+              onChange={(e) => setMapSearch(e.target.value)}
+              placeholder={
+                locale === 'zh'
+                  ? '比如：清水寺 / Kiyomizu-dera / Tokyo Tower'
+                  : 'e.g. Kiyomizu-dera / 清水寺 / Tokyo Tower'
+              }
+            />
+            <Button
+              type="submit"
+              variant="outline"
+              disabled={mapBusy}
+              className="shrink-0"
+            >
+              {mapBusy ? t(locale, 'mapLookupSearching') : t(locale, 'mapLookup')}
+            </Button>
+          </form>
+
+          {typeof draft.place?.lat === 'number' && typeof draft.place?.lng === 'number' && (
+            <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-emerald-100 bg-emerald-50/55 px-3 py-2 text-caption text-emerald-800">
+              <span className="font-semibold">{t(locale, 'mapLookupResolved')}</span>
+              <span className="text-emerald-700">
+                {t(locale, 'mapLookupCoords')}: {draft.place.lat.toFixed(4)}, {draft.place.lng.toFixed(4)}
+              </span>
+              {draft.place.address && (
+                <span className="text-emerald-700">· {draft.place.address}</span>
+              )}
+              <button
+                type="button"
+                className="ml-auto rounded-full border border-emerald-200 bg-white px-2.5 py-0.5 text-emerald-700 transition hover:bg-emerald-50"
+                onClick={clearMapCoords}
+              >
+                {t(locale, 'mapLookupClear')}
+              </button>
+            </div>
+          )}
+
+          {mapHits && mapHits.length > 0 && (
+            <div className="space-y-1.5">
+              {mapHits.map((hit) => (
+                <button
+                  key={`${hit.name}-${hit.lat}-${hit.lng}`}
+                  type="button"
+                  className="flex w-full items-center justify-between gap-2 rounded-2xl border border-brand-100 bg-white/85 px-3 py-2 text-left text-sm transition hover:border-brand-300 hover:bg-white"
+                  onClick={() => applyMapHit(hit)}
+                >
+                  <span className="min-w-0">
+                    <span className="block truncate font-semibold text-ink-900">{hit.name}</span>
+                    <span className="block truncate text-caption text-ink-500">
+                      {[hit.admin1, hit.country].filter(Boolean).join(', ')}
+                    </span>
+                  </span>
+                  <span className="shrink-0 text-caption font-semibold text-brand-700">
+                    {t(locale, 'mapLookupUse')}
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
+
+          {mapHits && mapHits.length === 0 && !mapBusy && (
+            <div className="text-caption text-ink-500">{t(locale, 'mapLookupNoResults')}</div>
+          )}
+
+          {mapError && <ErrorState message={mapError} className="text-xs" />}
+        </div>
       </FormSection>
 
       <FormSection label={t(locale, 'intro')}>

@@ -76,6 +76,15 @@ export interface Block {
   /** Display title (e.g. "金阁寺", "Tsukiji 早餐", "JR 京都→大阪"). */
   title: string
   place?: Place
+  /**
+   * Stable identifier of the `meta.mustVisit` entry this block originated
+   * from, normalized (lowercased + trimmed). It is decoupled from
+   * `title` / `place.name` so the user can freely rename the displayed
+   * title (e.g. add a Chinese translation) without us treating the block
+   * as "missing" and re-adding the original mustVisit entry as a duplicate
+   * candidate.
+   */
+  sourcePlaceKey?: string
   granularity: Granularity
   /** Used when granularity === 'flexible'. */
   daypart?: Daypart

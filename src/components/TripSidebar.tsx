@@ -53,7 +53,9 @@ function geocodeLabel(hit: GeocodeHit) {
 }
 
 function resolutionFromBlock(place: string, block: Block, queryKey: string): PlaceResolution | undefined {
+  const placeKey = normalizePlace(place)
   if (
+    block.sourcePlaceKey !== placeKey &&
     !samePlace(block.title, place) &&
     !samePlace(block.place?.name ?? '', place)
   ) {
@@ -105,6 +107,7 @@ function blockFromPlace(name: string, resolution?: PlaceResolution): Block {
   return {
     ...makeEmptyBlock(),
     title: name,
+    sourcePlaceKey: normalizePlace(name),
     place: {
       name: hit?.name ?? name,
       address: hit ? geocodeLabel(hit) : undefined,
@@ -117,10 +120,15 @@ function blockFromPlace(name: string, resolution?: PlaceResolution): Block {
 function applyPlaceResolution(block: Block, resolution?: PlaceResolution): Block {
   const hit = resolution?.hit
   if (!hit) return block
+  // Only auto-fill lat/lng/address when not already set. We never overwrite
+  // an existing place.name — the user may have intentionally renamed it
+  // (e.g. added a Chinese translation).
   const nextAddress = block.place?.address || geocodeLabel(hit)
+  const nextLat = block.place?.lat ?? hit.lat
+  const nextLng = block.place?.lng ?? hit.lng
   if (
-    block.place?.lat === hit.lat &&
-    block.place?.lng === hit.lng &&
+    block.place?.lat === nextLat &&
+    block.place?.lng === nextLng &&
     block.place?.address === nextAddress
   ) {
     return block
@@ -131,25 +139,40 @@ function applyPlaceResolution(block: Block, resolution?: PlaceResolution): Block
       ...block.place,
       name: block.place?.name || hit.name,
       address: nextAddress,
-      lat: hit.lat,
-      lng: hit.lng,
+      lat: nextLat,
+      lng: nextLng,
     },
   }
 }
 
-function renameBlockPlace(block: Block, nextName: string, resolution?: PlaceResolution): Block {
-  const hit = resolution?.hit
-  return {
-    ...block,
-    title: nextName,
-    place: {
-      ...block.place,
-      name: hit?.name ?? nextName,
-      address: hit ? geocodeLabel(hit) : block.place?.address,
-      lat: hit?.lat ?? block.place?.lat,
-      lng: hit?.lng ?? block.place?.lng,
-    },
+/**
+ * Update the mustVisit key when the chip is renamed. If the user never
+ * customized the title (it still matches the previous mustVisit string), we
+ * also propagate the rename to title/place.name so the candidate stays in
+ * sync. Once the user has edited the title we leave it alone — that is the
+ * whole point of decoupling them.
+ */
+function rekeyBlockPlace(block: Block, previousName: string, nextName: string): Block {
+  const nextKey = normalizePlace(nextName)
+  let next = block
+  if (block.sourcePlaceKey !== nextKey) {
+    next = { ...next, sourcePlaceKey: nextKey }
   }
+  const titleWasPristine = samePlace(block.title, previousName)
+  if (titleWasPristine) {
+    next = { ...next, title: nextName }
+  }
+  const placeNameWasPristine = samePlace(block.place?.name ?? '', previousName)
+  if (placeNameWasPristine) {
+    next = {
+      ...next,
+      place: {
+        ...next.place,
+        name: nextName,
+      },
+    }
+  }
+  return next
 }
 
 function reconcileDays(
@@ -341,12 +364,16 @@ export function TripSidebar({ onGenerated }: Props) {
       days: buildBlankDays(meta.numDays, meta.startDate),
     }
     const previousMustVisit = baseTrip.meta.mustVisit.map((p) => p.trim()).filter(Boolean)
-    const renameMap = new Map<string, string>()
+    // Track rename of a mustVisit chip by position. Going forward the block's
+    // `sourcePlaceKey` is always rekeyed; the title/place.name are only
+    // updated when they still match the previous chip text (i.e. the user
+    // never customized them).
+    const renameMap = new Map<string, { previous: string; next: string }>()
     if (previousMustVisit.length === mustVisit.length) {
       previousMustVisit.forEach((previous, index) => {
         const next = mustVisit[index]
         if (next && !samePlace(previous, next)) {
-          renameMap.set(normalizePlace(previous), next)
+          renameMap.set(normalizePlace(previous), { previous, next })
         }
       })
     }
@@ -358,55 +385,91 @@ export function TripSidebar({ onGenerated }: Props) {
         .map(normalizePlace),
     )
 
+    // We match a block to its originating mustVisit entry by
+    // `sourcePlaceKey`. Blocks created before this field existed (or added
+    // manually) fall back to title-matching so legacy data and brand-new
+    // hand-typed candidates still behave sanely.
+    const matchesKey = (block: Block, key: string) =>
+      (block.sourcePlaceKey ?? normalizePlace(block.title)) === key
+
+    const remapBlock = (block: Block): { block: Block; changed: boolean; remove: boolean } => {
+      const currentKey = block.sourcePlaceKey ?? normalizePlace(block.title)
+      if (removedMustVisit.has(currentKey)) {
+        return { block, changed: true, remove: true }
+      }
+      let next = block
+      let blockChanged = false
+      const renameEntry = renameMap.get(currentKey)
+      if (renameEntry) {
+        next = rekeyBlockPlace(next, renameEntry.previous, renameEntry.next)
+        if (next !== block) blockChanged = true
+      }
+      // Look up resolution by both the (new) sourcePlaceKey and the current
+      // title — covers manual entries that don't have a sourcePlaceKey yet.
+      const lookupName =
+        Array.from(Object.keys(placeResolutions)).find(
+          (name) => normalizePlace(name) === (next.sourcePlaceKey ?? normalizePlace(next.title)),
+        ) ?? next.title
+      const resolution = placeResolutions[lookupName]
+      const resolved = applyPlaceResolution(next, resolution)
+      if (resolved !== next) blockChanged = true
+      return { block: resolved, changed: blockChanged, remove: false }
+    }
+
     let changed = false
     const reconciled = reconcileDays(baseTrip.days, meta.numDays, meta.startDate)
     changed = changed || reconciled.changed || !trip
     const nextDays = reconciled.days.map((day) => ({
       ...day,
       blocks: day.blocks
-        .filter((block) => {
-          const removed = removedMustVisit.has(normalizePlace(block.title))
-          if (removed) changed = true
-          return !removed
-        })
-        .map((block) => {
-          let next = block
-          const renamedTo = renameMap.get(normalizePlace(block.title))
-          if (renamedTo) {
+        .map((block) => remapBlock(block))
+        .filter((entry) => {
+          if (entry.remove) {
             changed = true
-            next = renameBlockPlace(block, renamedTo, placeResolutions[renamedTo])
+            return false
           }
-          const resolved = applyPlaceResolution(next, placeResolutions[next.title])
-          if (resolved !== next) changed = true
-          return resolved
-        }),
+          if (entry.changed) changed = true
+          return true
+        })
+        .map((entry) => entry.block),
     }))
     const scheduledKeys = new Set(
-      nextDays.flatMap((day) => day.blocks.map((block) => normalizePlace(block.title))),
+      nextDays.flatMap((day) =>
+        day.blocks.map((block) => block.sourcePlaceKey ?? normalizePlace(block.title)),
+      ),
     )
     let nextUnscheduled = [...baseTrip.unscheduled, ...reconciled.removedBlocks]
-      .filter((block) => {
-        const removed = removedMustVisit.has(normalizePlace(block.title))
-        if (removed) changed = true
-        return !removed
+      .map((block) => remapBlock(block))
+      .filter((entry) => {
+        if (entry.remove) {
+          changed = true
+          return false
+        }
+        if (entry.changed) changed = true
+        return true
       })
-      .map((block) => {
-        const renamedTo = renameMap.get(normalizePlace(block.title))
-        const renamed = renamedTo ? renameBlockPlace(block, renamedTo, placeResolutions[renamedTo]) : block
-        if (renamed !== block) changed = true
-        const resolution = placeResolutions[renamed.title]
-        const next = applyPlaceResolution(renamed, resolution)
-        if (next !== block) changed = true
-        return next
-      })
+      .map((entry) => entry.block)
 
     const knownKeys = new Set([
       ...scheduledKeys,
-      ...nextUnscheduled.map((block) => normalizePlace(block.title)),
+      ...nextUnscheduled.map((block) => block.sourcePlaceKey ?? normalizePlace(block.title)),
     ])
     for (const place of mustVisit) {
       const key = normalizePlace(place)
       if (knownKeys.has(key)) continue
+      // Also skip if any block — even one without a sourcePlaceKey — already
+      // represents this place by title or place.name. Prevents duplicates on
+      // the first run for legacy data.
+      const matchedByLegacyTitle = [...nextDays.flatMap((d) => d.blocks), ...nextUnscheduled].some(
+        (block) =>
+          !block.sourcePlaceKey &&
+          (matchesKey(block, key) ||
+            normalizePlace(block.place?.name ?? '') === key),
+      )
+      if (matchedByLegacyTitle) {
+        knownKeys.add(key)
+        continue
+      }
       nextUnscheduled = [...nextUnscheduled, blockFromPlace(place, placeResolutions[place])]
       knownKeys.add(key)
       changed = true

@@ -67,6 +67,8 @@ Users do not need to install or configure a local environment. Open the deployed
 - [x] Previously resolved places are recovered from trip data, so refreshes or unrelated edits do not repeatedly geocode them.
 - [x] The map view can display resolved places.
 - [x] The map view supports direct place search and adding results to candidates.
+- [x] Place name and map coordinates are decoupled: renaming an activity (e.g. adding a Chinese translation) no longer re-creates the original must-visit entry as a duplicate candidate, and manually added activities try to geocode by title.
+- [x] The activity editor exposes a "Look up on map" picker for attaching map coordinates to any existing activity or switching to a different match.
 - [ ] Dragging map markers to update places.
 
 ### Local Trip Library, Versions, and Backups

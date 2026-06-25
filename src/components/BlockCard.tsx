@@ -30,10 +30,12 @@ const KIND_GLYPH: Record<string, string> = {
   other: '·',
 }
 
-function nextManualDaypart(daypart: Block['daypart']): 'AM' | 'PM' | 'EVE' {
+function nextManualDaypart(daypart: Block['daypart']): 'ANY' | 'AM' | 'PM' | 'EVE' {
+  if (daypart === 'ANY') return 'AM'
   if (daypart === 'AM') return 'PM'
   if (daypart === 'PM') return 'EVE'
-  return 'AM'
+  // EVE or undefined → back to flexible ("灵活")
+  return 'ANY'
 }
 
 export function BlockCard({ dayId, block, selected, onSelect, onEdit, dragging = false }: Props) {
@@ -115,16 +117,18 @@ export function BlockCard({ dayId, block, selected, onSelect, onEdit, dragging =
     >
       {/* Top row: time on left -------------------------------------------- */}
       <div className="mb-2 flex items-center justify-between gap-2 text-xs text-ink-500">
-        {!block.locked && isFlexible && (block.daypart === 'AM' || block.daypart === 'PM' || block.daypart === 'EVE') ? (
+        {!block.locked && isFlexible ? (
           <button
             type="button"
             className="rounded-full px-1.5 py-0.5 font-semibold text-ink-700 transition hover:bg-brand-50 hover:text-brand-700"
             title={
-              nextManualDaypart(block.daypart) === 'AM'
-                ? t(locale, 'morning')
-                : nextManualDaypart(block.daypart) === 'PM'
-                  ? t(locale, 'afternoon')
-                  : t(locale, 'evening')
+              nextManualDaypart(block.daypart) === 'ANY'
+                ? t(locale, 'daypartFlexible')
+                : nextManualDaypart(block.daypart) === 'AM'
+                  ? t(locale, 'morning')
+                  : nextManualDaypart(block.daypart) === 'PM'
+                    ? t(locale, 'afternoon')
+                    : t(locale, 'evening')
             }
             onPointerDown={(e) => e.stopPropagation()}
             onClick={(e) => {

@@ -66,7 +66,10 @@ function newTrip(): Trip {
       countries: [],
       mustVisit: [],
       vibes: [],
-      numDays: 4,
+      // A brand-new trip starts with no days; the board stays empty until
+      // the user explicitly bumps the day count or adds a day from the top
+      // toolbar.
+      numDays: 0,
       travelers: 1,
     },
     days: [],
@@ -386,7 +389,9 @@ export const useTripStore = create<TripState>()(
             countries: t.meta.countries,
             mustVisit: [],
             vibes: [],
-            numDays: 4,
+            // Match `newTrip` — clearing should produce an empty board, not
+            // a pre-populated 4-day skeleton.
+            numDays: 0,
             travelers: t.meta.travelers ?? 1,
           }
           commitUpdatedTrip({

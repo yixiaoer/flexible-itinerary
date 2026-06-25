@@ -19,7 +19,9 @@ const DEFAULT_META: TripMeta = {
   countries: [],
   mustVisit: [],
   vibes: [],
-  numDays: 4,
+  // Default to 0 so a brand-new / cleared trip shows an empty board until
+  // the user explicitly picks a day count.
+  numDays: 0,
   travelers: 1,
 }
 
@@ -355,7 +357,7 @@ export function TripSidebar({ onGenerated }: Props) {
       mustVisit.length > 0 ||
       countries.length > 0 ||
       Boolean(meta.startDate) ||
-      meta.numDays !== 4
+      meta.numDays !== 0
     if (!trip && !shouldCreateTrip) return
 
     const baseTrip = trip ?? {
